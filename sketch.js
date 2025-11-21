@@ -3,11 +3,23 @@ let rooms;
 let playerPos;
 let didWin;
 let debug = false;
+let boxes;
 
 let roomMissionVar = {
 	1: {"leverFlicked": false},
-	2: {}
+	2: {"allPlatesActive": false}
 }
+
+/*
+ - - Kendte bugs/ting der kan fikses - - 
+
+  - Fiks mission level 2. Lige nu kan den løses hvis alle kasser er på samme plade.
+
+  - Kasser kan gå ind i hinanden
+
+  - Hvis kasse er op af væggen kan man gå igennem den.
+
+*/
 
 function setup() {
 	createCanvas(windowWidth, windowHeight);
@@ -16,9 +28,11 @@ function setup() {
 }
 
 function newGame() {
-	currentRoom = {"n": 1}
+	currentRoom = {"n": 1};
 	rooms = [];
+	if(currentRoom["n"]!==1) {for(let i = 0; i < currentRoom["n"]-1; i++) {rooms.push({})}} 
 	didWin = undefined;
+	boxes = [];
 	updateRoom();
 }
 
@@ -42,7 +56,7 @@ function handleRoomMission(room) {
 	if(room["n"] === 1) {
 		//flick lever
 		//if player overlaps lever		
-		if(gridData(room, playerOverlaps(room, playerPos["x"], playerPos["y"])).includes(3)) {
+		if(gridData(room, rectOverlaps(room, playerPos["x"], playerPos["y"])).includes(3)) {
 			if(mouseIsPressed) {
 				roomMissionVar[room["n"]]["leverFlicked"] = true;
 				room["map"][4][1] = 0;
@@ -50,19 +64,19 @@ function handleRoomMission(room) {
 		}
 
 		if(roomMissionVar[room["n"]]["leverFlicked"] === true) {
-			if(gridData(room, playerOverlaps(room, playerPos["x"], playerPos["y"])).includes(2)) {
+			if(gridData(room, rectOverlaps(room, playerPos["x"], playerPos["y"])).includes(2)) {
 				room["plateActive"] = true;
 			}
 		}
 	} else if(room["n"] === 2) {
 		if(room["map"]) {
-			let playerEdges = getPlayerEdges(playerPos["x"], playerPos["y"]);
+			let playerEdges = getRectEdges(playerPos["x"], playerPos["y"]);
 			
 			for(i in boxes) {
 			boxes[i].show();
 
+				//box movement
 				if((playerEdges["right"] >= boxes[i].x && playerEdges["left"] <= boxes[i].x+boxes[i].size) && (playerEdges["bottom"] >= boxes[i].y && playerEdges["top"] <= boxes[i].y+boxes[i].size)) {
-					//if(gridData(boxes[i].x)) {}
 					
 					let overlapLeft = playerEdges["right"] - boxes[i].x;
 					let overlapRight = (boxes[i].x + boxes[i].size) - playerEdges["left"];
@@ -70,15 +84,48 @@ function handleRoomMission(room) {
 					let overlapBottom = (boxes[i].y + boxes[i].size) - playerEdges["top"];
 
 					let minOverlap = min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+					
+					let proposedX = boxes[i].x
+					let proposedY = boxes[i].y
 
-					if(minOverlap == overlapLeft) boxes[i].x = playerEdges["right"];
-					else if(minOverlap == overlapRight) boxes[i].x = playerEdges["left"]-boxes[i].size;
-					else if(minOverlap == overlapTop)  boxes[i].y = playerEdges["bottom"];
-					else if(minOverlap == overlapBottom) boxes[i].y = playerEdges["top"]-boxes[i].size;
+					if(minOverlap === overlapLeft) proposedX = playerEdges["right"];
+					if(minOverlap === overlapRight) proposedX = playerEdges["left"]-boxes[i].size;
+					if(minOverlap === overlapTop) proposedY = playerEdges["bottom"];
+					if(minOverlap === overlapBottom) proposedY = playerEdges["top"]-boxes[i].size; 
+
+					let canMoveX = true;
+					let boxCorners = getRectCorners(proposedX, boxes[i].y, boxes[i].size, 0.1);
+					let gridOverlap = pixelToGrid(room, boxCorners);
+					
+					if (gridData(room, gridOverlap).includes(1)) {
+						canMoveX = false;
+					}
+
+					//try vertical movement
+					let canMoveY = true;
+					let boxCornersY = getRectCorners(boxes[i].x, proposedY, boxes[i].size, 0.1)
+					let gridOverlapY = pixelToGrid(room, boxCornersY);
+
+					if (gridData(room, gridOverlapY).includes(1)) {
+						canMoveY = false;
+					}
+
+					if (canMoveX) boxes[i].x = proposedX;
+					if (canMoveY) boxes[i].y = proposedY;
 				}
+
+				//win criteria
+				if(gridData(room, rectOverlaps(room, boxes[i].x, boxes[i].y)).includes(2)) {
+					roomMissionVar[room["n"]]["allPlatesActive"] = true;
+				} else { roomMissionVar[room["n"]]["allPlatesActive"] = false}
 			}
+
+			if(roomMissionVar[room["n"]]["allPlatesActive"] === true && gridData(room, rectOverlaps(room, playerPos["x"], playerPos["y"])).includes(2)) {
+				room["plateActive"] = true;
+			}
+
 		}
-	}
+	} 
 
 //else if(room["n"] === 2) {}
 }
@@ -168,12 +215,12 @@ function updateRoom(side) {
 	*/
 }
 
-let boxes = [];
 function initNewRoom(room) {
 	if(room["n"] === 2) {
 		let box1 = new box(room, 2, 2);
-		let box2 = new box(room, 5, 5);
-		boxes.push(box1, box2)
+		let box2 = new box(room, 5, 4);
+		let box3 = new box(room, 3, 5);
+		boxes.push(box1, box2, box3)
 	}
 }
 
@@ -239,7 +286,7 @@ function movePlayer(room, speed) {
 	if (canMoveY) playerPos["y"] = proposedY;
 }
 
-function getPlayerEdges(x,y) {
+function getRectEdges(x,y) {
 	return {"left": x, "right": x+size, "top": y, "bottom": y+size}
 }
 
@@ -252,14 +299,8 @@ function getRectCorners(x,y,size,offset) {
 	return [TL, BL, TR, BR]
 }
 
-function playerOverlaps(room, x, y) {
-	//let g1 = pixelToGrid(room, x, y)
-	//let g2 = pixelToGrid(room, x, y+size)
-	//let g3 = pixelToGrid(room, x+size, y)
-	//let g4 = pixelToGrid(room, x+size, y+size)
-
+function rectOverlaps(room, x, y) {
 	return pixelToGrid(room, [{"x": x, "y": y},{"x": x, "y": y+size},{"x": x+size, "y": y},{"x": x+size, "y": y+size}])
-
 }
 
 function drawRoom(room) {
