@@ -72,60 +72,40 @@ function handleRoomMission(room) {
 		if(room["map"]) {
 			let playerEdges = getRectEdges(playerPos["x"], playerPos["y"]);
 			
+			let platesActive = 0;
+
 			for(i in boxes) {
-			boxes[i].show();
-
-				//box movement
-				if((playerEdges["right"] >= boxes[i].x && playerEdges["left"] <= boxes[i].x+boxes[i].size) && (playerEdges["bottom"] >= boxes[i].y && playerEdges["top"] <= boxes[i].y+boxes[i].size)) {
-					
-					let overlapLeft = playerEdges["right"] - boxes[i].x;
-					let overlapRight = (boxes[i].x + boxes[i].size) - playerEdges["left"];
-					let overlapTop = playerEdges["bottom"] - boxes[i].y;
-					let overlapBottom = (boxes[i].y + boxes[i].size) - playerEdges["top"];
-
-					let minOverlap = min(overlapLeft, overlapRight, overlapTop, overlapBottom);
-					
-					let proposedX = boxes[i].x
-					let proposedY = boxes[i].y
-
-					if(minOverlap === overlapLeft) proposedX = playerEdges["right"];
-					if(minOverlap === overlapRight) proposedX = playerEdges["left"]-boxes[i].size;
-					if(minOverlap === overlapTop) proposedY = playerEdges["bottom"];
-					if(minOverlap === overlapBottom) proposedY = playerEdges["top"]-boxes[i].size; 
-
-					let canMoveX = true;
-					let boxCorners = getRectCorners(proposedX, boxes[i].y, boxes[i].size, 0.1);
-					let gridOverlap = pixelToGrid(room, boxCorners);
-					
-					if (gridData(room, gridOverlap).includes(1)) {
-						canMoveX = false;
-					}
-
-					//try vertical movement
-					let canMoveY = true;
-					let boxCornersY = getRectCorners(boxes[i].x, proposedY, boxes[i].size, 0.1)
-					let gridOverlapY = pixelToGrid(room, boxCornersY);
-
-					if (gridData(room, gridOverlapY).includes(1)) {
-						canMoveY = false;
-					}
-
-					if (canMoveX) boxes[i].x = proposedX;
-					if (canMoveY) boxes[i].y = proposedY;
-				}
+				boxes[i].show();
+				boxes[i].move(playerEdges);
 
 				//win criteria
 				if(gridData(room, rectOverlaps(room, boxes[i].x, boxes[i].y)).includes(2)) {
-					roomMissionVar[room["n"]]["allPlatesActive"] = true;
-				} else { roomMissionVar[room["n"]]["allPlatesActive"] = false}
+					platesActive++;
+				}
 			}
 
-			if(roomMissionVar[room["n"]]["allPlatesActive"] === true && gridData(room, rectOverlaps(room, playerPos["x"], playerPos["y"])).includes(2)) {
+			if(platesActive===3 && gridData(room, rectOverlaps(room, playerPos["x"], playerPos["y"])).includes(2)) {
 				room["plateActive"] = true;
 			}
-
 		}
-	} 
+	} else if(room["n"] === 3) {
+		if(room["map"]) {
+			if(gridData(room, rectOverlaps(room, playerPos["x"], playerPos["y"])).includes(2)) {
+				room["plateActive"] = true;
+			}
+			guard1.show();
+
+			if(guard1.distance() < guard1.size/7) {
+				didWin = false;
+			}
+
+			if(guard1.distance() < 20) {
+				guard1.move();
+			}
+
+			if(room["plateActive"]) guard1.speed = 2.1;
+		}
+	}
 
 //else if(room["n"] === 2) {}
 }
@@ -144,11 +124,108 @@ class box {
 		fill(130,60,0)
 		rect(this.x, this.y, this.size, this.size)
 	}
+
+	move(playerEdges) {
+		if((playerEdges["right"] >= boxes[i].x && playerEdges["left"] <= boxes[i].x+boxes[i].size) && (playerEdges["bottom"] >= boxes[i].y && playerEdges["top"] <= boxes[i].y+boxes[i].size)) {
+					
+			let overlapLeft = playerEdges["right"] - boxes[i].x;
+			let overlapRight = (boxes[i].x + boxes[i].size) - playerEdges["left"];
+			let overlapTop = playerEdges["bottom"] - boxes[i].y;
+			let overlapBottom = (boxes[i].y + boxes[i].size) - playerEdges["top"];
+
+			let minOverlap = min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+			
+			let proposedX = boxes[i].x
+			let proposedY = boxes[i].y
+
+			if(minOverlap === overlapLeft) proposedX = playerEdges["right"];
+			if(minOverlap === overlapRight) proposedX = playerEdges["left"]-boxes[i].size;
+			if(minOverlap === overlapTop) proposedY = playerEdges["bottom"];
+			if(minOverlap === overlapBottom) proposedY = playerEdges["top"]-boxes[i].size; 
+
+			let canMoveX = true;
+			let boxCorners = getRectCorners(proposedX, boxes[i].y, boxes[i].size, 0.1);
+			let gridOverlap = pixelToGrid(this.room, boxCorners);
+			
+			if (gridData(this.room, gridOverlap).includes(1)) {
+				canMoveX = false;
+			}
+
+			//try vertical movement
+			let canMoveY = true;
+			let boxCornersY = getRectCorners(boxes[i].x, proposedY, boxes[i].size, 0.1)
+			let gridOverlapY = pixelToGrid(this.room, boxCornersY);
+
+			if (gridData(this.room, gridOverlapY).includes(1)) {
+				canMoveY = false;
+			}
+
+			if (canMoveX) boxes[i].x = proposedX;
+			if (canMoveY) boxes[i].y = proposedY;
+		}
+	}
+}
+
+class guard {
+	constructor(room,x,y) {
+		this.room = room;
+		this.coordinate = gridToPixel(room, x, y);
+		this.x = this.coordinate["x"];
+		this.y = this.coordinate["y"];
+
+		this.size = this.room["gridDimensions"]*0.8
+		this.speed = 1.1;
+	}
+
+	show() {
+		fill(120,0,150)
+		rect(this.x, this.y, this.size, this.size)
+	}
+
+	distance() {
+		let dx = abs(playerPos["x"]-this.x);
+		let dy = abs(playerPos["y"]-this.y);
+		return Math.sqrt((dx^2)+(dy^2))
+	}
+
+	move() {
+		let proposedX = this.x
+		let proposedY = this.y
+
+		if(playerPos["x"] < this.x) proposedX-=this.speed;
+		if(playerPos["x"] > this.x) proposedX+=this.speed;
+		if(playerPos["y"] < this.y) proposedY-=this.speed;
+		if(playerPos["y"] > this.y) proposedY+=this.speed;
+
+		let canMoveX = true;
+		let guardCorners = getRectCorners(proposedX, this.y, this.size, 0.1);
+		let gridOverlap = pixelToGrid(this.room, guardCorners);
+		
+		if (gridData(this.room, gridOverlap).includes(1)) {
+			canMoveX = false;
+		}
+
+		//try vertical movement
+		let canMoveY = true;
+		let guardCornersY = getRectCorners(this.x, proposedY, this.size, 0.1)
+		let gridOverlapY = pixelToGrid(this.room, guardCornersY);
+
+		if (gridData(this.room, gridOverlapY).includes(1)) {
+			canMoveY = false;
+		}
+
+
+
+		if (canMoveX) this.x = proposedX;
+		if (canMoveY) this.y = proposedY;
+	}
 }
 
 function drawEndScreen() {
 		background(240);
-		drawRoom(rooms[currentRoom["n"]-2]);
+		
+		if(didWin) drawRoom(rooms[currentRoom["n"]-2]); 
+		else drawRoom(rooms[currentRoom["n"]-1]); 
 
 		background(40,40,40,250);
 
@@ -215,12 +292,16 @@ function updateRoom(side) {
 	*/
 }
 
+let guard1;
+
 function initNewRoom(room) {
 	if(room["n"] === 2) {
 		let box1 = new box(room, 2, 2);
 		let box2 = new box(room, 5, 4);
 		let box3 = new box(room, 3, 5);
 		boxes.push(box1, box2, box3)
+	} else if(room["n"] === 3) {
+		guard1 = new guard(room, 10, 10)
 	}
 }
 
