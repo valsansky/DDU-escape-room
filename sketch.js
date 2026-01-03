@@ -4,6 +4,7 @@ let playerPos;
 let didWin;
 let debug = false;
 let boxes = [];
+let size;
 /*
  - - Kendte bugs/ting der kan fikses - - 
 
@@ -15,8 +16,12 @@ let boxes = [];
 
 */
 let roomMissionVar;
+let walkingAnimation = [[],[],[],[]];
+
+let textures = {}
 
 function preload() {
+	//load rooms
 	for(let i = 0; i < 3; i++) {
 
 		let room = loadRoom(i);
@@ -28,6 +33,24 @@ function preload() {
 			"plateActive": undefined //pressure plate
 		})		
 	}
+
+	//load images
+	characterIMG = loadImage(`assets/textures/Characters/Character.png`)
+	//walking animation
+	for(let i = 0; i < 4; i++) {
+		img = loadImage(`assets/textures/Characters/Walk/Left/${i+1}.png`) 
+		walkingAnimation[0].push(img)
+		img = loadImage(`assets/textures/Characters/Walk/Up/${i+1}.png`)
+		walkingAnimation[1].push(img)
+		img = loadImage(`assets/textures/Characters/Walk/Right/${i+1}.png`) 
+		walkingAnimation[2].push(img)
+		img = loadImage(`assets/textures/Characters/Walk/Down/${i+1}.png`) 
+		walkingAnimation[3].push(img)
+	} 
+
+	textures.lever = {}
+	textures.lever.off = loadImage(`assets/textures/Interactive/Lever/lever_off.png`)
+	textures.lever.on = loadImage(`assets/textures/Interactive/Lever/lever_on.png`)
 }
 
 function loadRoom(n) { //laver et array der beskriver room[n], returnerer room
@@ -61,36 +84,11 @@ function loadRoom(n) { //laver et array der beskriver room[n], returnerer room
 
 	return room;
 }
-/*
-function updateRoom(side) {
-	if(rooms[currentRoom["n"]-1]) {
-		currentRoom = rooms[currentRoom["n"]-1]
-		if(side==="left") playerPos = gridToPixel(currentRoom, currentRoom["map"][0].length-2, 2);
-		else if(side==="right") playerPos = gridToPixel(currentRoom, 1, 2);
-	} else {
-	loadRoom(currentRoom["n"], room => { 
-		rooms.push({
-			"n": currentRoom["n"],
-			"map": room, 
-			"gridDimensions": calcGridDimensions(room),
-			"plateActive": false //pressure plate
-		}
-	)
-		currentRoom = rooms[currentRoom["n"]-1]
 
-		if(currentRoom["n"]===1) playerPos = gridToPixel(currentRoom, 2, 2);
-		else playerPos = gridToPixel(currentRoom, 1, 2);
-
-		initNewRoom(currentRoom);
-	});
-}
-}*/
-
-
-
-function setup() {
+function setup() { 
 	createCanvas(windowWidth, windowHeight);
-		
+	noSmooth();
+
 	newGame();
 }
 
@@ -115,14 +113,6 @@ function newGame() {
 	didWin = undefined;
 	
 	playerPos = gridToPixel(rooms[currentRoom], 2, 2);
-
-	/*
-	currentRoom = {"n": 1};
-	rooms = [];
-	if(currentRoom["n"]!==1) {for(let i = 0; i < currentRoom["n"]-1; i++) {rooms.push({})}} 
-	didWin = undefined;
-	boxes = [];
-	updateRoom();*/
 }
 
 function draw() {
@@ -133,9 +123,7 @@ function draw() {
 			updatePlayer(rooms[currentRoom]); //opdater spiller
 			if(currentRoom === rooms.length) {didWin = true; return; }
 			handleRoomMission(rooms[currentRoom]);
-		} 
-		//if(currentRoom === rooms.length){ didWin = true; console.log("SLUT") }
-				
+		} 	
 	} else drawEndScreen();
 }
 
@@ -207,7 +195,7 @@ class box {
 		this.x = this.coordinate["x"];
 		this.y = this.coordinate["y"];
 
-		this.size = this.room["gridDimensions"]*0.8
+		this.size = size
 	}
 
 	show() {
@@ -263,7 +251,7 @@ class guard {
 		this.x = this.coordinate["x"];
 		this.y = this.coordinate["y"];
 
-		this.size = this.room["gridDimensions"]*0.8
+		this.size = size
 		this.speed = this.room["gridDimensions"]/43;
 	}
 
@@ -365,9 +353,7 @@ function initNewRoom(n) {
 	}
 }
 
-let size;
 function updatePlayer(room) {
-	
 	//initialize player
 	size = room["gridDimensions"]*0.8;
 	let speed = room["gridDimensions"]/20;
@@ -376,23 +362,19 @@ function updatePlayer(room) {
 		movePlayer(room, speed);
 
 		//draw player
-		fill("blue");
-		rect(playerPos["x"],playerPos["y"], size, size);
+		//fill("blue");
+		//rect(playerPos["x"],playerPos["y"], size, size);
+		//image(imageTEST,playerPos["x"],playerPos["y"], size, size)
 	}
 
 
 	//update room right
-	if(playerPos["x"]+5 >= width/2+(room["map"][0].length/2*room["gridDimensions"])-size) {
-	//updateRoom("right")}
-		currentRoom++; if(currentRoom < rooms.length){playerPos=gridToPixel(rooms[currentRoom], 0, 2); playerPos["x"]+=20;}}
+	if(playerPos["x"]+5 >= width/2+(room["map"][0].length/2*room["gridDimensions"])-size) 
+	{currentRoom++; if(currentRoom < rooms.length){playerPos=gridToPixel(rooms[currentRoom], 0, 2); playerPos["x"]+=20;}}
 	//update room left
 	if(playerPos["x"]-5 <= width/2-(room["map"][0].length/2*room["gridDimensions"])) 
-	//{updateRoom("left")}
-	
-		{currentRoom--; playerPos=gridToPixel(rooms[currentRoom], rooms[currentRoom]["map"][0].length-1, 2);}
+	{currentRoom--; playerPos=gridToPixel(rooms[currentRoom], rooms[currentRoom]["map"][0].length-1, 2);}
 }
-
-
 
 function movePlayer(room, speed) {
 	let offset = 0.1;  //lille offset som gør player hitbox lidt mindre så player kan komme helt op af væggen
@@ -431,6 +413,33 @@ function movePlayer(room, speed) {
 	//move player
 	if (canMoveX) playerPos["x"] = proposedX;
 	if (canMoveY) playerPos["y"] = proposedY;
+	
+	drawPlayer(moveLeft,moveUp,moveRight,moveDown)
+}
+
+let animationFrame = 0;
+
+function drawPlayer(moveLeft,moveUp,moveRight,moveDown) {
+	let x = playerPos["x"], y = playerPos["y"], s = size;
+	let img = characterIMG;
+
+	if(moveLeft) img = updatePlayerSprite(animationFrame, 0)
+	else if(moveUp) img = updatePlayerSprite(animationFrame, 1)
+	else if(moveRight) img = updatePlayerSprite(animationFrame, 2)
+	else if(moveDown) img = updatePlayerSprite(animationFrame, 3)
+
+	if(frameCount%5 === 0 && animationFrame<4) animationFrame++;
+	else if(animationFrame === 4) animationFrame = 0;
+	image(img, x, y, s, s)
+}
+
+function updatePlayerSprite(frame, direction) {
+	if(frame===0) img = walkingAnimation[direction][1]
+	if(frame===1) img = walkingAnimation[direction][2]
+	if(frame===2) img = walkingAnimation[direction][3]
+	if(frame===3) img = walkingAnimation[direction][0]
+
+	return img;
 }
 
 function getRectEdges(x,y) {
@@ -457,15 +466,18 @@ function drawRoom(n) {
 		for(let y = 0; y < room["map"].length; y++) {
 			//color the map
 			if(room["map"][y][x] === 0) noFill();
-			else if(room["map"][y][x] === 1) fill(0);
-			else if(room["map"][y][x] === 2) fill("red");
-			else if(room["map"][y][x] === 3) fill("blue");
-
+			else if(room["map"][y][x] === 1) fill(0,0,0,100);
+			else if(room["map"][y][x] === 2) fill(255,0,0,100);
+			else if(room["map"][y][x] === 3) drawTexture(textures.lever.on, reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"])
 			//draw grid
 			reeleKoordinater = gridToPixel(room,x,y);
 			rect(reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"], room["gridDimensions"])
 		}
 	}
+}
+
+function drawTexture(texture, x, y, s)  {//x,y, size
+	image(texture, x, y, s, s)
 }
 
 function gridToPixel(room,x,y) { //tager imod koordinatpunkt på grid, og omdanner til faktiske pixel koordinater
