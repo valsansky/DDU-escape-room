@@ -2,7 +2,7 @@ let currentRoom;
 let rooms = [];
 let playerPos;
 let didWin;
-let debug = false;
+let debug = true;
 let boxes = [];
 let size;
 /*
@@ -36,7 +36,7 @@ function preload() {
 
 	//load images
 	characterIMG = loadImage(`assets/textures/Characters/Character.png`)
-	//walking animation
+	//walking animations
 	for(let i = 0; i < 4; i++) {
 		img = loadImage(`assets/textures/Characters/Walk/Left/${i+1}.png`) 
 		walkingAnimation[0].push(img)
@@ -48,9 +48,16 @@ function preload() {
 		walkingAnimation[3].push(img)
 	} 
 
+
 	textures.lever = {}
 	textures.lever.off = loadImage(`assets/textures/Interactive/Lever/lever_off.png`)
 	textures.lever.on = loadImage(`assets/textures/Interactive/Lever/lever_on.png`)
+
+    textures.pressurePlate = {}
+    textures.pressurePlate.off = loadImage(`assets/textures/Interactive/Pressure plate/pressure_plate_off.png`)
+	textures.pressurePlate.on = loadImage(`assets/textures/Interactive/Pressure plate/pressure_plate_on.png`)
+
+    textures.box = loadImage(`assets/textures/box.png`)
 }
 
 function loadRoom(n) { //laver et array der beskriver room[n], returnerer room
@@ -109,10 +116,10 @@ function newGame() {
 		initNewRoom(i);
 	}
 
-	currentRoom = 0;
+	currentRoom = 2;
 	didWin = undefined;
 	
-	playerPos = gridToPixel(rooms[currentRoom], 2, 2);
+	playerPos = gridToPixel(rooms[currentRoom], 1, 2);
 }
 
 function draw() {
@@ -127,6 +134,8 @@ function draw() {
 	} else drawEndScreen();
 }
 
+let onClick = false;
+let clickLocked = false;  
 function handleRoomMission(room) {
 	if(room["plateActive"] === false) {room["map"][2][room["map"][0].length-1] = 1;}
 	else if(room["plateActive"] === true) {room["map"][2][room["map"][0].length-1] = 0;}
@@ -137,9 +146,16 @@ function handleRoomMission(room) {
 		//flick lever
 		//if player overlaps lever		
 		if(gridData(room, rectOverlaps(room, playerPos["x"], playerPos["y"])).includes(3)) {
-			if(mouseIsPressed) {
-				roomMissionVar[room["n"]]["leverFlicked"] = true;
-			}
+            if (mouseIsPressed) {
+                if (!clickLocked) { onClick = true; clickLocked = true;} 
+                else { onClick = false; }
+            } else { clickLocked = false; onClick = false; }
+
+            if(onClick) {
+                if(roomMissionVar[room["n"]]["leverFlicked"]) roomMissionVar[room["n"]]["leverFlicked"] = false;
+				else roomMissionVar[room["n"]]["leverFlicked"] = true;
+            }
+			
 		}
 		if(roomMissionVar[room["n"]]["leverFlicked"] === true) room["map"][4][1] = 0;
 		else room["map"][4][1] = 1;
@@ -182,7 +198,7 @@ function handleRoomMission(room) {
 				guard1.move();
 			}
 
-			if(room["plateActive"]) {guard1.speed = room["gridDimensions"]/25;}
+			if(room["plateActive"]) {guard1.speed = room["gridDimensions"]/35;}
 	}
 
 //else if(room["n"] === 2) {}
@@ -195,12 +211,13 @@ class box {
 		this.x = this.coordinate["x"];
 		this.y = this.coordinate["y"];
 
-		this.size = size
+		this.size = room["gridDimensions"]*0.8
 	}
 
 	show() {
 		fill(130,60,0)
-		rect(this.x, this.y, this.size, this.size)
+        image(textures.box, this.x, this.y, this.size, this.size)
+		//rect(this.x, this.y, this.size, this.size)
 	}
 
 	move(playerEdges) {
@@ -251,13 +268,13 @@ class guard {
 		this.x = this.coordinate["x"];
 		this.y = this.coordinate["y"];
 
-		this.size = size
-		this.speed = this.room["gridDimensions"]/43;
+		this.size =  room["gridDimensions"]*0.8
+		//this.speed = 100;
 	}
 
 	show() {
-		fill(120,0,150)
-		rect(this.x, this.y, this.size, this.size)
+		fill(120,0,150);
+        image(characterIMG,this.x, this.y, this.size, this.size)
 	}
 
 	distance() {
@@ -464,13 +481,22 @@ function drawRoom(n) {
 
 	for(let x = 0; x < room["map"][0].length; x++) {
 		for(let y = 0; y < room["map"].length; y++) {
+			reeleKoordinater = gridToPixel(room,x,y);
+
 			//color the map
 			if(room["map"][y][x] === 0) noFill();
 			else if(room["map"][y][x] === 1) fill(0,0,0,100);
-			else if(room["map"][y][x] === 2) fill(255,0,0,100);
-			else if(room["map"][y][x] === 3) drawTexture(textures.lever.on, reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"])
+			else if(room["map"][y][x] === 2) { //pressure plate
+                fill(0,0,0,0);
+                if(!room["plateActive"]) drawTexture(textures.pressurePlate.off, reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"])
+				if(room["plateActive"]) drawTexture(textures.pressurePlate.on, reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"])
+                }   
+			else if(room["map"][y][x] === 3) { //lever
+				fill(0,0,0,0);
+				if(!roomMissionVar[room["n"]]["leverFlicked"]) drawTexture(textures.lever.off, reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"])
+				if(roomMissionVar[room["n"]]["leverFlicked"]) drawTexture(textures.lever.on, reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"])
+			}
 			//draw grid
-			reeleKoordinater = gridToPixel(room,x,y);
 			rect(reeleKoordinater["x"], reeleKoordinater["y"], room["gridDimensions"], room["gridDimensions"])
 		}
 	}
