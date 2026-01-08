@@ -2,19 +2,9 @@ let currentRoom;
 let rooms = [];
 let playerPos;
 let didWin;
-let debug = true;
+let debug = false;
 let boxes = [];
 let size;
-/*
- - - Kendte bugs/ting der kan fikses - - 
-
-  - Fiks mission level 2. Lige nu kan den løses hvis alle kasser er på samme plade.
-
-  - Kasser kan gå ind i hinanden
-
-  - Hvis kasse er op af væggen kan man gå igennem den.
-
-*/
 let roomMissionVar;
 let walkingAnimation = [[],[],[],[]];
 
@@ -116,10 +106,10 @@ function newGame() {
 		initNewRoom(i);
 	}
 
-	currentRoom = 2;
+	currentRoom = 0;
 	didWin = undefined;
 	
-	playerPos = gridToPixel(rooms[currentRoom], 1, 2);
+	playerPos = gridToPixel(rooms[currentRoom], 2, 2);
 }
 
 function draw() {
