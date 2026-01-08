@@ -188,7 +188,7 @@ function handleRoomMission(room) {
 				guard1.move();
 			}
 
-			if(room["plateActive"]) {guard1.speed = room["gridDimensions"]/35;}
+			if(room["plateActive"]) {guard1.speed = room["gridDimensions"]/30;}
 	}
 
 //else if(room["n"] === 2) {}
@@ -259,7 +259,7 @@ class guard {
 		this.y = this.coordinate["y"];
 
 		this.size =  room["gridDimensions"]*0.8
-		//this.speed = 100;
+		this.speed = room["gridDimensions"]/35;
 	}
 
 	show() {
@@ -276,7 +276,7 @@ class guard {
 	move() {
 		let proposedX = this.x
 		let proposedY = this.y
-
+		
 		if(playerPos["x"] < this.x) proposedX-=this.speed;
 		if(playerPos["x"] > this.x) proposedX+=this.speed;
 		if(playerPos["y"] < this.y) proposedY-=this.speed;
@@ -290,6 +290,7 @@ class guard {
 		let canMoveY = true;
 		let guardCornersY = getRectCorners(this.x, proposedY, this.size, 0.1)
 		let gridOverlapY = pixelToGrid(this.room, guardCornersY);
+
 
 
 		if (gridData(this.room, gridOverlap).includes(1)) {
@@ -328,7 +329,7 @@ function drawEndScreen() {
 
 	rect(width/2-max(width, height)*0.06, height*0.55, max(width, height)*0.12, height*0.06);
 	fill(0); textSize(max(width, height)*0.02);
-	text("New Game", width/2, height*0.58);
+	text("Try Again", width/2, height*0.58);
 }
 
 function calcGridDimensions(room) {
